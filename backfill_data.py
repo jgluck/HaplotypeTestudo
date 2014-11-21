@@ -4,10 +4,27 @@ import pysam
 from time import sleep
 from operator import itemgetter
 import glob
+import pickle
+import psycopg2
+import os.path
+import csv
 
 SAM_FILE = pysam.Samfile("alignments/sorted/EMB1.rm.bam_sorted.bam.bam", "rb")
 
 
+##Constants
+C_C = 'c'
+A_C = 'a'
+T_C = 't'
+G_C = 'g'
+
+
+A_CONST = ['a', 'A']
+C_CONST = ['c', 'C']
+G_CONST = ['g', 'G']
+T_CONST = ['t', 'T']
+DOT_CONST = ['.', ',']
+DEL_CONST = ['^', '$']
 
 def lookup_base(scaf, base):
     p_ups = SAM_FILE.pileup(reference=scaf,start=base-150,end=base+150)
@@ -57,7 +74,7 @@ class AlignmentColumn:
         return x
 
     def find_alt(self):
-        options = [('c',self.c), ('a',self.a), ('t',self.t), ('g',self.g)]
+        options = [(C_C,self.c), (A_C,self.a), (T_C,self.t), (G_C,self.g)]
         best = max(options, key = itemgetter(1))
         if float(best[1])/float((self.dot or 1)) >= .25:
             self.alt = best[0]
@@ -80,17 +97,17 @@ class AlignmentColumn:
                     dl += ln[i+2+offs]
                 i+= num_char
                 self.dl.append(dl)
-            elif ln[i] in ['a','A']:
+            elif ln[i] in A_CONST:
                 self.a += 1
-            elif ln[i] in ['c','C']:
+            elif ln[i] in C_CONST:
                 self.c += 1
-            elif ln[i] in ['t','T']:
+            elif ln[i] in T_CONST:
                 self.t += 1
-            elif ln[i] in ['g','G']:
+            elif ln[i] in G_CONST:
                 self.g += 1
-            elif ln[i] in ['.',',']:
+            elif ln[i] in DOT_CONST:
                 self.dot += 1
-            elif ln[i] in ['^','$']:
+            elif ln[i] in DEL_CONST:
                 self.dot += 1
                 i += 1
             i += 1
@@ -98,7 +115,7 @@ class AlignmentColumn:
 class PileupReader:
     def __init__(self,f_name):
         self.file_name = f_name
-        self.turtle = self.file_name.split('.')[0]
+        self.turtle = os.path.basename(self.file_name).split('.')[0] 
         self.fp = open(self.file_name, 'r')
 
 
@@ -120,18 +137,49 @@ def get_pileup_list():
     fn_list = glob.glob('pileups/*_pileup')
     return fn_list
 
+def handle_csv_line(csv_line, turtles, cursor):
+    turt = csv_line[0]
+    seq = csv_line[1]
+    pos = csv_line[2]
+    ref = csv_line[3]
+
+    a_col = turtles[turt][seq][int(pos)]
+    assert int(pos) == int(a_col.pos)
+    assert seq == a_col.seq
+    query = "INSERT INTO variants (turtle,scaffold,pos,ref,alt,qual,dp,af1,backfilled) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+    data = (turt,seq,pos,a_col.ref,a_col.alt,"0","0","0","t")
+    cursor.execute(query,data)
+
+
 def main():
     turtles = {}
+    conn=psycopg2.connect("host=biords.cjt20mcdfhfm.us-east-1.rds.amazonaws.com port=5432 user=master password=tomswift dbname=haplotypes")
+    cursor = conn.cursor()
+
     for pileup_file in get_pileup_list():
         bar(75)
         print "Begging work on file %s" %(pileup_file)
-        cur_arr = [] 
+        cur_dict = {} 
         cur_reader = PileupReader(pileup_file)
         for a_col in cur_reader:
-            cur_arr.append(a_col)
-        turtles[cur_reader.turtle] = cur_arr
+            if a_col.seq in cur_dict:
+                cur_dict[a_col.seq][int(a_col.pos)] = a_col
+            else:
+                cur_dict[a_col.seq] = [None] * 145000
+                cur_dict[a_col.seq][int(a_col.pos)] = a_col
+        turtles[cur_reader.turtle] = cur_dict
+    with open("to_backfill.csv", "rb") as b_csv:
+        b_reader = csv.reader(b_csv, delimiter=',')
+        for line in b_reader:
+            try:
+                handle_csv_line(line,turtles,cursor)
+            except Exception, e:
+                print "Line was: \n\t%s" %(" ".join(line))
+                print turtles.keys()
+                import traceback
+                print traceback.format_exc()
 
-    print turtles['EMB2'][3]
+    conn.commit()
 
 def bar(num):
     print "~" * num
