@@ -31,6 +31,7 @@ def handle_turtle(turtle):
                     variant_arr = variants[turtle][scaffold][pos]
                     if h_answer not in variant_arr:
                         print "Uh oh!: %s not in %s" % (h_answer, str(variant_arr))
+                        v_answer = ",".join(variant_arr)
                     else:
                         variant_arr.remove(h_answer)
                         v_answer = ",".join(variant_arr)
