@@ -13,10 +13,10 @@ SAM_FILE = pysam.Samfile("alignments/sorted/EMB1.rm.bam_sorted.bam.bam", "rb")
 
 
 ##Constants
-C_C = 'c'
-A_C = 'a'
-T_C = 't'
-G_C = 'g'
+C_C = 'C'
+A_C = 'A'
+T_C = 'T'
+G_C = 'G'
 
 
 A_CONST = ['a', 'A']
@@ -141,21 +141,20 @@ def handle_csv_line(csv_line, turtles, cursor):
     turt = csv_line[0]
     seq = csv_line[1]
     pos = csv_line[2]
-    ref = csv_line[3]
 
     a_col = turtles[turt][seq][int(pos)]
     assert int(pos) == int(a_col.pos)
     assert seq == a_col.seq
     query = "INSERT INTO variants (turtle,scaffold,pos,ref,alt,qual,dp,af1,backfilled) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+    if a_col.alt == "N":
+        a_col.alt = a_col.ref
     data = (turt,seq,pos,a_col.ref,a_col.alt,"0","0","0","t")
     cursor.execute(query,data)
 
 
 def main():
     turtles = {}
-    conn=psycopg2.connect("host=biords.cjt20mcdfhfm.us-east-1.rds.amazonaws.com port=5432 user=master password=tomswift dbname=haplotypes")
-    cursor = conn.cursor()
-
+    
     for pileup_file in get_pileup_list():
         bar(75)
         print "Begging work on file %s" %(pileup_file)
@@ -168,18 +167,21 @@ def main():
                 cur_dict[a_col.seq] = [None] * 145000
                 cur_dict[a_col.seq][int(a_col.pos)] = a_col
         turtles[cur_reader.turtle] = cur_dict
+    conn=psycopg2.connect("host=biords.cjt20mcdfhfm.us-east-1.rds.amazonaws.com port=5432 user=tiffany password=tiffany dbname=haplotypes")
+    cursor = conn.cursor()
+
     with open("to_backfill.csv", "rb") as b_csv:
         b_reader = csv.reader(b_csv, delimiter=',')
         for line in b_reader:
             try:
                 handle_csv_line(line,turtles,cursor)
+                conn.commit()
             except Exception, e:
                 print "Line was: \n\t%s" %(" ".join(line))
                 print turtles.keys()
                 import traceback
                 print traceback.format_exc()
 
-    conn.commit()
 
 def bar(num):
     print "~" * num
