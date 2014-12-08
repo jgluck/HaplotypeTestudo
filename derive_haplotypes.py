@@ -81,7 +81,7 @@ class AlignmentColumn:
     
     def get_alts(self):
         alts = []
-        for x in [(C_C,self.c),(A_A,self.a),(T_T,self.t),(G_G,self.g)]:
+        for x in [(C_C,self.c),(A_C,self.a),(T_C,self.t),(G_C,self.g)]:
             cat,quant = x
             if quant > 0:
                 alts.append((cat,quant))
@@ -179,17 +179,19 @@ def handle_turtle(fn,turtle):
                 v_answer = "-"
                 p_group = []
                 try:
-                    p_col = t_pile[turtle][scaffold][pos]
+                    p_col = t_pile[turtle][scaffold][int(pos)]
                     p_group = p_col.get_alts()
-                except:
+                except Exception, e:
+                    import traceback
+                    print traceback.format_exc()
                     print "Failed pileup things"
                 
-                
+                p_group = [ s[0] for s in p_group]
                 if h_answer not in p_group:
                     print "Uh oh!: %s not in %s" % (h_answer, str(p_group))
                     v_answer = ",".join(p_group)
                 else:
-                    variant_arr.remove(h_answer)
+                    p_group.remove(h_answer)
                     v_answer = ",".join(p_group)
                 if not v_answer:
                     v_answer = h_answer
