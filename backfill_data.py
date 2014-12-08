@@ -129,7 +129,7 @@ class PileupReader:
                 #GOOD
                 align_col = AlignmentColumn(ln)
                 return align_col
-            self.fp.readline()
+            ln = self.fp.readline()
         raise StopIteration()
 
 
