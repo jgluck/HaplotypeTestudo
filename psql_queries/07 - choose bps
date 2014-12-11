@@ -1,0 +1,36 @@
+drop table if exists bp_chosen;
+
+create table bp_chosen (
+	bucket  smallint not null,
+	scaffold varchar(13) not null,
+	pos      integer not null,
+	ref      varchar(100) not null,
+	bp       varchar(100) not null,
+	count    integer not null
+);
+
+insert into bp_chosen (
+	bucket,
+	scaffold,
+	pos,
+	ref,
+	bp,
+	count
+)
+
+with highest_vote as (
+		select bucket, scaffold, pos, ref, max(count) "max"
+		from vote_counts
+		group by bucket, scaffold, pos, ref
+	)
+
+select v.bucket, v.scaffold, v.pos, v.ref, v.bp, v.count
+from vote_counts v
+	join highest_vote h
+	on
+		v.bucket = h.bucket
+		and v.scaffold = h.scaffold
+		and v.pos = h.pos
+		and v.ref = h.ref
+		and v.count = h.max
+;

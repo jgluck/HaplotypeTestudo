@@ -1,0 +1,41 @@
+insert into votes (
+    mother,
+    child,
+    scaffold,
+    pos,
+    ref,
+    bp
+)
+
+with children as (
+        select distinct turtle "child"
+        from variants
+        where turtle != 'testuda'
+    ),
+
+    locations as (
+        select distinct scaffold, pos, ref
+        from variants
+        where char_length(ref) = 1
+            and char_length(alt) = 1
+    ),
+
+    -- (scaffold, pos, ref) x children
+    all_possibilities as (
+        select child, scaffold, pos, ref
+        from children, locations
+    ),
+
+    existing_votes as (
+        select child, scaffold, pos, bp
+        from votes
+    )
+
+select 'testuda' "mother", child, scaffold, pos, ref, '-' "bp"
+from all_possibilities
+    left outer join
+    existing_votes
+    using (child, scaffold, pos)
+where bp is null
+order by child, scaffold, pos
+;

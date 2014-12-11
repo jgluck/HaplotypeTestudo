@@ -1,0 +1,24 @@
+-- _pc, as in 'per-child'
+drop table if exists candidates_pc;
+
+create table candidates_pc (
+    id       smallserial primary key,
+    child    varchar(7) not null,
+    sequence varchar(4000) not null
+);
+
+insert into candidates_pc (
+    child,
+    sequence
+)
+
+with serialized as (
+        select *
+        from votes
+        order by child, scaffold, pos
+    )
+
+select child, string_agg(bp, '')
+from serialized
+group by child
+;

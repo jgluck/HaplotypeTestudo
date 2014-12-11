@@ -1,0 +1,7 @@
+copy (
+    select bucket, scaffold, pos, bp
+    from candidates_pg
+    order by scaffold, pos, bucket
+)
+to stdout with csv
+;

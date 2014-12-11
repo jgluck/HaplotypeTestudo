@@ -1,0 +1,31 @@
+drop table if exists vote_counts;
+
+create table vote_counts (
+	bucket  smallint not null,
+	scaffold varchar(13) not null,
+	pos      integer not null,
+	ref      varchar(100) not null,
+	bp       varchar(100) not null,
+	count    integer not null
+);
+
+insert into vote_counts (
+	bucket,
+	scaffold,
+	pos,
+	ref,
+	bp,
+	count
+)
+
+with augmented as (
+		select child, scaffold, pos, ref, bp, bucket
+		from votes
+			join groups
+			using (child)
+	)
+
+select bucket, scaffold, pos, ref, bp, count(1) "count"
+from augmented
+group by bucket, scaffold, pos, ref, bp
+;

@@ -1,0 +1,6 @@
+copy (
+    select child, sequence
+    from candidates_pc
+)
+to stdout with csv
+;

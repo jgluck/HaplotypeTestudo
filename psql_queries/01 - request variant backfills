@@ -1,0 +1,37 @@
+copy (
+    with turtles as (
+            select distinct turtle
+            from variants
+
+        ),
+
+        single_base_variants as (
+            select turtle, scaffold, pos, alt
+            from variants
+            where backfilled = 'f'
+                and char_length(ref) = 1
+                and char_length(alt) = 1
+        ),
+
+        -- generate (scaffold, pos) x turtle
+        -- distinct is necessary, as single_base_variants also has a turtle column
+        all_possibilities AS (
+            select distinct t.turtle, scaffold, pos
+            from turtles t, single_base_variants
+        )
+
+        -- now look for missing entries
+        select turtle, scaffold, pos
+        from all_possibilities
+            left outer join single_base_variants
+            using (turtle, scaffold, pos)
+        where alt is null
+        order by turtle, scaffold, pos
+    )
+to stdout with csv
+;
+
+
+
+
+    

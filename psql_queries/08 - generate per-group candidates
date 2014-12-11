@@ -1,0 +1,54 @@
+-- find any split votes: randomly choose a winner (and remove the losers manually)
+select b1.bucket, b1.scaffold, b1.pos, b1.bp, b1.count
+from bp_chosen b1
+    join bp_chosen b2
+    using (bucket, scaffold, pos)
+where b1.bp != b2.bp;
+
+-- comment: bucket 1, scaffold 1, pos 98851 had a split vote, randomly chose T
+delete from bp_chosen
+where bucket = 1
+    and scaffold = 'SCAFFOLD00001'
+    and pos = 98851
+    and bp = 'T';
+
+--------------------------------------------------------------------------------
+
+drop table if exists candidates_pg;
+
+create table candidates_pg (
+    id       smallserial primary key,
+    bucket   smallint not null,
+    scaffold varchar(13) not null,
+    pos      integer not null,
+    ref      varchar(100) not null,
+    bp       varchar(100) not null,
+    count    smallint not null
+);
+
+insert into candidates_pg (
+    bucket,
+    scaffold,
+    pos,
+    ref,
+    bp,
+    count
+)
+
+-- throw out any positions where any group voted for -
+with valid_positions as (
+        select scaffold, pos
+        from bp_chosen b1
+            join bp_chosen b2
+            using (scaffold, pos, ref)
+        where b1.bucket != b2.bucket
+            and b1.bp != '-'
+            and b2.bp != '-'
+    )
+
+select distinct bucket, v.scaffold, v.pos, ref, bp, count
+from valid_positions v
+    join bp_chosen b
+    using (scaffold, pos)
+order by bucket, scaffold, pos
+;

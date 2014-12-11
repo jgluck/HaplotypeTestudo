@@ -1,0 +1,87 @@
+drop table if exists votes;
+
+create table votes (
+    id       serial       primary key,
+    mother   varchar(7)   not null,
+    child    varchar(7)   not null,
+    scaffold varchar(13)  not null,
+    pos      integer      not null,
+    ref      varchar(100) not null,
+    bp       varchar(100) not null
+);
+
+insert into votes (
+    mother,
+    child,
+    scaffold,
+    pos,
+    ref,
+    bp
+)
+
+with 
+
+    -- filter out things like ref = 'AGG', alt = 'AGGG'
+    single_base_variants as (
+        select turtle, scaffold, pos, ref, alt
+        from variants
+        where char_length(ref) = 1
+            and char_length(alt) = 1
+    ),
+
+    mother_rows as (
+        select turtle, scaffold, pos, ref, alt
+        from single_base_variants
+        where turtle = 'testuda'
+    ),
+
+    child_rows as (
+        select turtle, scaffold, pos, ref, alt
+        from single_base_variants
+        where turtle != 'testuda'
+    ),
+
+    -- want: (mother, child, scaffold, pos, ref, bp) tuples
+    -- comment: m.ref = c.ref isn't considered; it's JOINed on
+
+    -- batch 1: m.ref matches c.alt
+    ref_alt as (
+        select
+            m.turtle "mother",
+            c.turtle "child",
+            m.scaffold,
+            m.pos,
+            m.ref,
+            m.ref "bp"
+        from mother_rows m
+            join child_rows c
+            using (scaffold, pos, ref)
+        where m.ref = c.alt
+    ),
+
+    -- batch 2: m.alt matches c.alt
+    alt_alt as (
+        select
+            m.turtle "mother",
+            c.turtle "child",
+            m.scaffold,
+            m.pos,
+            m.ref,
+            m.alt "bp"
+        from mother_rows m
+            join child_rows c
+            using (scaffold, pos, ref)
+        where m.alt = c.alt
+    )
+
+    -- comment: locations that don't match, and places that are missing reads,
+    --          will be backfilled in a second pass
+
+select *
+from (
+    select * from ref_alt
+    union
+    select * from alt_alt
+) matches
+order by child, scaffold, pos
+;

@@ -40,6 +40,9 @@ def main():
     read_variants()
     load_pileup()
     for fn in haplotype_file_name:
+        haplotypes = {}
+        haplotypes['1'] = {}
+        haplotypes['2'] = {}
         read_haplotypes(fn)
         for turtle in turtles.keys():
             handle_turtle(fn,turtle)
