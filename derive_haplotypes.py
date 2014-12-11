@@ -40,7 +40,6 @@ def main():
     read_variants()
     load_pileup()
     for fn in haplotype_file_name:
-        haplotypes = {}
         haplotypes['1'] = {}
         haplotypes['2'] = {}
         read_haplotypes(fn)
@@ -218,11 +217,14 @@ def read_variants():
 
 def read_haplotypes(name):
     with open(name, 'rb') as haplotype_file:
+        print "Beginning work on haplotype file: " + name
         haplotype_reader = csv.reader(haplotype_file, delimiter=",")
         for row in haplotype_reader:
             if row[1] not in haplotypes[row[0]]:
                 haplotypes[row[0]][row[1]] = {}
             haplotypes[row[0]][row[1]][row[2]] = row[4]
+        for scaf in haplotypes['1']:
+            print len(haplotypes['1'][scaf])
             
 def bar(n):
     print "=" * n
